@@ -1,0 +1,221 @@
+% !TEX program = xelatex
+\documentclass[11pt,a4paper]{article}
+
+% ---------- Page & typography ----------
+\usepackage[margin=1in]{geometry}
+\usepackage{microtype}
+\usepackage{setspace}
+\setstretch{1.12}
+
+% ---------- Colors, links, lists ----------
+\usepackage[dvipsnames]{xcolor}
+\usepackage[colorlinks=true,linkcolor=MidnightBlue,citecolor=OliveGreen,urlcolor=BrickRed]{hyperref}
+\usepackage{enumitem}
+\setlist[itemize]{topsep=3pt,itemsep=2pt,parsep=0pt}
+\setlist[enumerate]{topsep=4pt,itemsep=3pt,parsep=0pt}
+
+% ---------- Tables ----------
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{longtable}
+\renewcommand{\arraystretch}{1.12}
+
+% ---------- Code / PDDL blocks ----------
+\usepackage{listings}
+\lstdefinestyle{pddl}{
+  basicstyle=\ttfamily\small,
+  columns=fullflexible,
+  showstringspaces=false,
+  frame=single,
+  framerule=0.4pt,
+  rulecolor=\color{black!25},
+  backgroundcolor=\color{black!3},
+  breaklines=true
+}
+
+% ---------- Figures (optional, for maps) ----------
+\usepackage{graphicx}
+
+% ---------- Convenience macros ----------
+\newcommand{\pred}[1]{\texttt{(#1)}}
+\newcommand{\action}[1]{\textbf{\textsf{#1}}}
+
+% ---------- Title ----------
+\title{\vspace{-8mm}\textbf{Lunar Exploration PDDL Domains \& Missions}\\
+\large(Tested on \texttt{editor.planning.domains} with BFWS--FF-parser)\vspace{-3mm}}
+\author{}
+\date{\vspace{-6mm}\today}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}\noindent
+This document gives a structured, publication-ready presentation of two PDDL domains (Domain~1 and its extension Domain~2) and three problem instances. 
+\end{abstract}
+
+\section{Testing Setup}
+All domains and problems are tested on \href{https://editor.planning.domains}{\texttt{editor.planning.domains}}, using the BFWS--FF-parser version.
+
+% =========================================================
+\section{Domain 1: Explanation of Predicates and Actions}
+
+\subsection*{Predicates}
+
+\paragraph{Position and Movement}
+\begin{itemize}
+  \item \pred{lander-at ?l ?loc}: Records where each lander is located on the lunar surface.
+  \item \pred{at ?r ?loc}: Indicates the current location of a rover.
+  \item \pred{path ?from ?to}: Describes which surface locations are directly reachable from one another.
+\end{itemize}
+
+\paragraph{Assignment and Deployment}
+\begin{itemize}
+  \item \pred{assigned ?r ?l}: Each rover belongs to a specific lander.
+  \item \pred{unplaced ?l}: The lander has not been placed on the surface yet and needs a landing point.
+  \item \pred{deployed ?r}: Whether a rover has been deployed from its lander.
+\end{itemize}
+
+\paragraph{Data-related predicates}
+\begin{itemize}
+  \item \pred{image-target ?img ?loc}: Image task that must be collected at a certain location.
+  \item \pred{scan-target ?sc ?loc}: Scan task that must be done at a specific location.
+  \item \pred{taken ?d}: The required data (image/scan) has already been captured.
+  \item \pred{empty-memory ?r}: The rover has free memory (1-slot memory).
+  \item \pred{holding-data ?r ?d}: The rover’s memory currently contains a piece of data.
+  \item \pred{transmitted ?d ?l}: The data has already been transmitted back to the lander.
+\end{itemize}
+
+\paragraph{Sample-related predicates}
+\begin{itemize}
+  \item \pred{sample-at ?s ?loc}: A sample is available on the surface at a given location.
+  \item \pred{holding-sample ?r ?s}: The rover has picked up the sample.
+  \item \pred{sample-picked-up ?s}: The sample has already been collected from the surface.
+  \item \pred{sample-stored ?s}: The sample has already been stored inside some lander.
+  \item \pred{stored ?s ?l}: The sample has been stored in a specific lander.
+  \item \pred{lander-free ?l}: The lander has free space for storing a sample (only one in my model).
+\end{itemize}
+
+\subsection*{Actions}
+
+\begin{itemize}
+  \item \action{choose-landing}: Assigns a landing site to a lander that has not been placed yet.
+  \item \action{deploy}: A rover is deployed from its lander and appears at the lander’s location.
+  \item \action{retrieve}: The rover is taken back into its lander, removing it from the surface.
+  \item \action{move}: A rover moves between two connected surface locations.
+  \item \action{take-image} / \action{scan}: The rover captures data at a specific waypoint, if the location matches the task and its memory is empty.
+  \item \action{transmit}: The rover sends its stored data back to its assigned lander.
+  \item \action{pick-up-sample}: The rover collects a sample from the surface.
+  \item \action{store-sample}: A rover stores its collected sample inside its assigned lander (only when the rover is retrieved).
+\end{itemize}
+
+% =========================================================
+\section{Domain 2: What I Added or Modified}
+
+Domain~2 is an extension of Domain~1. The scientific part of the model stays the same, but I introduce a human astronaut system and internal lander areas. Below I summarize exactly what I changed.
+
+\subsection*{New Types}
+\begin{itemize}
+  \item \textsf{astronaut}
+  \item \textsf{area}
+\end{itemize}
+These types allow me to model a crew member moving inside different rooms/areas within a lander.
+
+\subsection*{New Predicate}
+\begin{itemize}
+  \item \pred{crew-in ?a ?l ?ar}: Indicates that astronaut \texttt{?a} is currently in area \texttt{?ar} inside lander \texttt{?l}. This predicate is the basis for controlling deployment, retrieval, and data transmission.
+\end{itemize}
+
+\subsection*{New Action}
+\begin{itemize}
+  \item \action{move-crew}: Allows the astronaut to move between different internal areas of the lander (e.g., docking-bay $\rightarrow$ control-room).
+\end{itemize}
+
+\subsection*{Modified Existing Actions}
+
+\paragraph{deploy} Now requires: astronaut must be in the docking-bay of the lander.
+
+\paragraph{retrieve} Also requires: astronaut must be in the docking-bay.
+
+\paragraph{transmit} Now requires: astronaut must be in the control-room.
+
+\paragraph{store-sample} Also requires: astronaut must be in the docking-bay.
+
+\subsection*{What Stays the Same}
+All rover tasks (\action{move}, \action{take-image}, \action{scan}, \action{pick-up-sample}) remain unchanged. Sample logic, transmission logic, and path connectivity also remain the same.
+
+% =========================================================
+\section{Lunar Mission 1 — Using the Map in Figure 2}
+
+\paragraph{Initial State}
+One lander and one rover. Initially, the lander has not yet selected a landing site, the rover is not deployed, the lander’s storage is empty, and the rover’s memory is empty.
+
+\paragraph{Objectives}
+\begin{itemize}
+  \item capture \texttt{image5} at \texttt{wp5},
+  \item perform \texttt{scan3} at \texttt{wp3},
+  \item collect \texttt{sample1} at \texttt{wp1} and deliver it back to the lander.
+\end{itemize}
+
+\paragraph{Planning Note}
+The plan needs to determine a landing site for the lander, deploy the rover, and navigate the rover through the required locations to complete all objectives using the surface map shown in Figure~2.
+
+% (Optional illustration placeholder)
+% \begin{figure}[h]
+%   \centering
+%   \includegraphics[width=.8\linewidth]{fig2.pdf}
+%   \caption{Surface map for Mission 1 (Figure 2).}
+% \end{figure}
+
+% =========================================================
+\section{Lunar Mission 2 — Using the Map in Figure 3}
+
+\paragraph{Initial State}
+\begin{itemize}
+  \item \texttt{lander1} is already located at \texttt{wp2}, with \texttt{rover1} deployed at \texttt{wp2}.
+  \item \texttt{lander2} has not yet chosen a landing site, and \texttt{rover2} is not deployed.
+  \item Both landers have empty storage, and both rovers start with empty memory.
+\end{itemize}
+
+\paragraph{Objectives}
+\begin{itemize}
+  \item capture \texttt{image2} at \texttt{wp2},
+  \item capture \texttt{image3} at \texttt{wp3},
+  \item perform \texttt{scan4} at \texttt{wp4},
+  \item perform \texttt{scan6} at \texttt{wp6},
+  \item collect \texttt{sample1} at \texttt{wp1},
+  \item collect \texttt{sample5} at \texttt{wp5},
+  \item and store all collected samples in a lander.
+\end{itemize}
+
+\paragraph{Planning Note}
+The plan needs to decide where \texttt{lander2} should land, deploy \texttt{rover2}, and coordinate both rovers to complete all data-gathering and sample-collection tasks based on the map in Figure~3.
+
+% (Optional illustration placeholder)
+% \begin{figure}[h]
+%   \centering
+%   \includegraphics[width=.8\linewidth]{fig3.pdf}
+%   \caption{Surface map for Missions 2 and 3 (Figure 3).}
+% \end{figure}
+
+% =========================================================
+\section{Lunar Mission 3 — Using the Map in Figure 3}
+
+\paragraph{Initial State}
+This instance is based on the same terrain as Mission~2 but includes astronauts and internal lander areas. At the beginning, Alice is in lander1’s docking-bay, and Bob is in lander2’s control-room. Lander1 remains at \texttt{wp2} with \texttt{rover1} deployed there. Lander2 is unplaced, and \texttt{rover2} is not deployed. All storage and memory are initially empty.
+
+\paragraph{Objectives}
+The required mission goals are the same as in Mission~2:
+\begin{itemize}
+  \item photograph \texttt{image2} at \texttt{wp2},
+  \item photograph \texttt{image3} at \texttt{wp3},
+  \item perform \texttt{scan4} at \texttt{wp4},
+  \item perform \texttt{scan6} at \texttt{wp6},
+  \item collect \texttt{sample1} from \texttt{wp1},
+  \item collect \texttt{sample5} from \texttt{wp5},
+  \item and ensure all samples are stored in a lander.
+\end{itemize}
+
+\paragraph{Planning Note}
+In this instance, actions such as deploying rovers, storing samples, or transferring data must be carried out by the astronauts from the correct internal areas, so the plan must also coordinate astronaut movement within the landers.
+
+\end{document}
